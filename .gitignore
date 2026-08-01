@@ -1,0 +1,32 @@
+# Claude Code — local settings
+.claude/settings.local.json
+.claude/*.local.json
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.vite/
+
+# Cloudflare / Wrangler local state
+.wrangler/
+worker-configuration.d.ts
+
+# Secrets
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+!.env.example
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# Editor / OS
+.DS_Store
+*.log
