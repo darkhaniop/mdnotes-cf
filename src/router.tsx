@@ -4,6 +4,8 @@ import { RequireAuth } from '@/components/layout/RequireAuth';
 import { Landing } from '@/routes/Landing';
 import { Login } from '@/routes/Login';
 import { Signup } from '@/routes/Signup';
+import { ProjectList } from '@/routes/ProjectList';
+import { ProjectDetail } from '@/routes/ProjectDetail';
 import { NotFound, RouteErrorBoundary } from '@/routes/NotFound';
 
 export const router = createBrowserRouter([
@@ -17,7 +19,10 @@ export const router = createBrowserRouter([
       </RequireAuth>
     ),
     errorElement: <RouteErrorBoundary />,
-    children: [{ path: '/projects', element: <div /> }],
+    children: [
+      { path: '/projects', element: <ProjectList /> },
+      { path: '/projects/:projectId', element: <ProjectDetail /> },
+    ],
   },
   { path: '*', element: <NotFound /> },
 ]);
