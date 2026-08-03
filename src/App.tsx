@@ -1,20 +1,19 @@
-import { useEffect, useState } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider } from 'react-router/dom';
+import { Toaster } from 'sonner';
+import { router } from '@/router';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 1, staleTime: 30_000, refetchOnWindowFocus: false },
+  },
+});
 
 export function App() {
-  const [health, setHealth] = useState<string>('checking…');
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then((r) => r.json())
-      .then((d) => setHealth(JSON.stringify(d)))
-      .catch(() => setHealth('unreachable'));
-  }, []);
-
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-3 p-8">
-      <h1 className="text-3xl font-semibold">mdnotes</h1>
-      <p className="text-muted-foreground text-sm">Scaffold is up.</p>
-      <pre className="bg-card rounded-md border p-3 text-xs">{health}</pre>
-    </main>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+      <Toaster richColors position="bottom-right" />
+    </QueryClientProvider>
   );
 }
