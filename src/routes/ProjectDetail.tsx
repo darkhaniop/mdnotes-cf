@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useDeleteProject, useProject, useUpdateProject } from '@/hooks/useProjects';
+import { AssetPanel } from '@/components/project/AssetPanel';
 
 export function ProjectDetail() {
   const { projectId = '' } = useParams();
@@ -85,6 +86,14 @@ export function ProjectDetail() {
             <Trash2 /> Delete
           </Button>
         </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+        <div className="min-w-0" data-testid="documents-section" />
+        <aside className="lg:sticky lg:top-20 lg:self-start">
+          <h2 className="mb-2 text-sm font-medium">Files</h2>
+          <AssetPanel projectId={project.id} />
+        </aside>
       </div>
 
       <Dialog open={renaming} onOpenChange={setRenaming}>

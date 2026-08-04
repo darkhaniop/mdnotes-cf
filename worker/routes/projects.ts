@@ -9,6 +9,7 @@ import { newId, slugify } from '../lib/ids';
 import { requireAuth, requireOwnership } from '../middleware/auth';
 import { deleteProjectObjects } from '../lib/r2';
 import { notFound } from '../middleware/error';
+import assets from './assets';
 
 export function toProjectDto(project: Project, counts?: { documents: number; assets: number }): ProjectDto {
   return {
@@ -115,5 +116,7 @@ projects.delete('/:projectId', requireAuth, requireOwnership, async (c) => {
     .where(and(eq(schema.projects.id, project.id), eq(schema.projects.userId, project.userId)));
   return c.body(null, 204);
 });
+
+projects.route('/:projectId/assets', assets);
 
 export default projects;
