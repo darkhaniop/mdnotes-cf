@@ -7,6 +7,7 @@ import { Signup } from '@/routes/Signup';
 import { ProjectList } from '@/routes/ProjectList';
 import { ProjectDetail } from '@/routes/ProjectDetail';
 import { DocumentView } from '@/routes/DocumentView';
+import { DocumentEdit } from '@/routes/DocumentEdit';
 import { NotFound, RouteErrorBoundary } from '@/routes/NotFound';
 
 export const router = createBrowserRouter([
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
       { path: '/projects', element: <ProjectList /> },
       { path: '/projects/:projectId', element: <ProjectDetail /> },
       { path: '/projects/:projectId/docs/:docId', element: <DocumentView /> },
+      { path: '/projects/:projectId/docs/:docId/edit', element: <DocumentEdit /> },
     ],
   },
   { path: '*', element: <NotFound /> },
