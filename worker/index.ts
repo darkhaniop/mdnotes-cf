@@ -4,6 +4,7 @@ import { onError } from './middleware/error';
 import auth from './routes/auth';
 import projects from './routes/projects';
 import { assetsById } from './routes/assets';
+import { documentsById } from './routes/documents';
 
 export type Bindings = {
   DB: D1Database;
@@ -25,6 +26,7 @@ app.get('/health', (c) => c.json({ ok: true, service: 'mdnotes', time: Date.now(
 app.route('/auth', auth);
 app.route('/projects', projects);
 app.route('/assets', assetsById);
+app.route('/documents', documentsById);
 
 app.notFound((c) => c.json({ error: 'not_found' }, 404));
 

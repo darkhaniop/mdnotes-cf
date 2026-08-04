@@ -10,6 +10,7 @@ import { requireAuth, requireOwnership } from '../middleware/auth';
 import { deleteProjectObjects } from '../lib/r2';
 import { notFound } from '../middleware/error';
 import assets from './assets';
+import documents from './documents';
 
 export function toProjectDto(project: Project, counts?: { documents: number; assets: number }): ProjectDto {
   return {
@@ -118,5 +119,6 @@ projects.delete('/:projectId', requireAuth, requireOwnership, async (c) => {
 });
 
 projects.route('/:projectId/assets', assets);
+projects.route('/:projectId/documents', documents);
 
 export default projects;

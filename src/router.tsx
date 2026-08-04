@@ -6,6 +6,7 @@ import { Login } from '@/routes/Login';
 import { Signup } from '@/routes/Signup';
 import { ProjectList } from '@/routes/ProjectList';
 import { ProjectDetail } from '@/routes/ProjectDetail';
+import { DocumentView } from '@/routes/DocumentView';
 import { NotFound, RouteErrorBoundary } from '@/routes/NotFound';
 
 export const router = createBrowserRouter([
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/projects', element: <ProjectList /> },
       { path: '/projects/:projectId', element: <ProjectDetail /> },
+      { path: '/projects/:projectId/docs/:docId', element: <DocumentView /> },
     ],
   },
   { path: '*', element: <NotFound /> },
