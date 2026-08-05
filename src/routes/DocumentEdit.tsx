@@ -18,6 +18,7 @@ import { AssetPanel } from '@/components/project/AssetPanel';
 import { useDocument, useUpdateDocument } from '@/hooks/useDocuments';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useUiStore } from '@/lib/ui-store';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 const AUTOSAVE_DELAY_MS = 800;
 const PREVIEW_DEBOUNCE_MS = 200;
@@ -40,10 +41,15 @@ export function DocumentEdit() {
   /** The updatedAt the server last confirmed; sent back for optimistic concurrency. */
   const baseUpdatedAt = useRef<number | null>(null);
   const conflicted = useRef(false);
+  /** Autosave stays off until the user actually types, so loading never writes. */
+  const edited = useRef(false);
+  /** Saves are chained; overlapping writes would send a stale expectedUpdatedAt. */
+  const queue = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     if (!document || loadedFor.current === document.id) return;
     loadedFor.current = document.id;
+    edited.current = false;
     setTitle(document.title);
     setContent(document.content);
     baseUpdatedAt.current = document.updatedAt;
@@ -51,31 +57,35 @@ export function DocumentEdit() {
   }, [document]);
 
   const save = useCallback(
-    async (next: { title: string; content: string }) => {
-      if (conflicted.current || !loadedFor.current) return;
-      setSaveState('saving');
-      try {
-        const saved = await updateDocument.mutateAsync({
-          title: next.title.trim() || 'Untitled',
-          content: next.content,
-          ...(baseUpdatedAt.current !== null
-            ? { expectedUpdatedAt: baseUpdatedAt.current }
-            : {}),
-        });
-        baseUpdatedAt.current = saved.updatedAt;
-        setSaveState('saved');
-      } catch (error) {
-        setSaveState('error');
-        if (error instanceof ApiError && error.status === 409) {
-          conflicted.current = true;
-          toast.error('This document changed elsewhere. Reload to continue.', {
-            action: { label: 'Reload', onClick: () => window.location.reload() },
-            duration: Infinity,
+    (next: { title: string; content: string }) => {
+      const run = async () => {
+        if (conflicted.current || !loadedFor.current) return;
+        setSaveState('saving');
+        try {
+          const saved = await updateDocument.mutateAsync({
+            title: next.title.trim() || 'Untitled',
+            content: next.content,
+            ...(baseUpdatedAt.current !== null
+              ? { expectedUpdatedAt: baseUpdatedAt.current }
+              : {}),
           });
-        } else {
-          toast.error('Could not save. Your changes are still here — try again.');
+          baseUpdatedAt.current = saved.updatedAt;
+          setSaveState('saved');
+        } catch (error) {
+          setSaveState('error');
+          if (error instanceof ApiError && error.status === 409) {
+            conflicted.current = true;
+            toast.error('This document changed elsewhere. Reload to continue.', {
+              action: { label: 'Reload', onClick: () => window.location.reload() },
+              duration: Infinity,
+            });
+          } else {
+            toast.error('Could not save. Your changes are still here — try again.');
+          }
         }
-      }
+      };
+      queue.current = queue.current.then(run, run);
+      return queue.current;
     },
     [updateDocument],
   );
@@ -84,7 +94,7 @@ export function DocumentEdit() {
   // server last confirmed.
   const draft = useDebouncedValue({ title, content }, AUTOSAVE_DELAY_MS);
   useEffect(() => {
-    if (!document || loadedFor.current !== document.id) return;
+    if (!edited.current || !document || loadedFor.current !== document.id) return;
     if (draft.title === document.title && draft.content === document.content) return;
     void save(draft);
     // `document` is intentionally excluded: it changes on every successful save,
@@ -106,11 +116,16 @@ export function DocumentEdit() {
   }, [saveNow]);
 
   const insertAsset = useCallback((asset: AssetDto) => {
+    edited.current = true;
     const snippet = isImageMime(asset.contentType)
       ? `![${asset.filename}](${asset.filename})`
       : `[${asset.filename}](${asset.filename})`;
     editor.current?.insertAtCursor(snippet);
   }, []);
+
+  // Below md a horizontal split leaves both panes unusable, so it stacks.
+  const isWide = useMediaQuery('(min-width: 768px)');
+  const splitOrientation = isWide ? 'horizontal' : 'vertical';
 
   const deferredContent = useDeferredValue(content);
   const previewContent = useDebouncedValue(deferredContent, PREVIEW_DEBOUNCE_MS);
@@ -149,6 +164,7 @@ export function DocumentEdit() {
           data-testid="title-input"
           value={title}
           onChange={(e) => {
+            edited.current = true;
             setTitle(e.target.value);
             setSaveState('dirty');
           }}
@@ -192,12 +208,13 @@ export function DocumentEdit() {
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div className="min-h-0 flex-1">
-          <Group orientation="horizontal" className="flex h-full min-h-[60vh]">
+          <Group orientation={splitOrientation} className="flex h-full min-h-[60vh]">
             <Panel defaultSize="50%" minSize="25%" className="min-w-0">
               <MarkdownEditor
                 ref={editor}
                 value={content}
                 onChange={(next) => {
+                  edited.current = true;
                   setContent(next);
                   setSaveState('dirty');
                 }}
@@ -206,7 +223,13 @@ export function DocumentEdit() {
             </Panel>
             {previewVisible ? (
               <>
-                <Separator className="bg-[var(--border)] hover:bg-[var(--ring)] w-1 cursor-col-resize transition-colors" />
+                <Separator
+                  className={
+                    isWide
+                      ? 'bg-[var(--border)] hover:bg-[var(--ring)] w-1 cursor-col-resize transition-colors'
+                      : 'bg-[var(--border)] hover:bg-[var(--ring)] h-1 cursor-row-resize transition-colors'
+                  }
+                />
                 <Panel defaultSize="50%" minSize="25%" className="min-w-0 overflow-auto">
                   <div className="p-4">
                     <MarkdownPreview content={previewContent} projectId={projectId} />
