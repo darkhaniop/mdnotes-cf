@@ -6,14 +6,57 @@ markdown source, R2 holds uploaded images and PDFs.
 
 See [`PLAN.md`](./PLAN.md) for the full design.
 
-## Getting started
+---
+
+## Local development
 
 ```bash
 npm install
-cp .dev.vars.example .dev.vars   # then fill in real secrets: openssl rand -base64 32
-npm run db:migrate:local
+cp .dev.vars.example .dev.vars   # then fill in real secrets, see below
+npm run db:migrate:local         # applies migrations/ to the local (Miniflare) D1
 npm run dev                      # http://localhost:5173 — real Worker + local D1/R2
 ```
+
+`npm run dev` runs the actual Worker through `@cloudflare/vite-plugin`, so the API, the SPA, D1 and
+R2 all behave the way they will in production — just against local emulated storage under
+`.wrangler/`. No Cloudflare account or login is needed for any of this.
+
+### `.dev.vars`
+
+`.dev.vars` is gitignored and holds the two secrets the Worker needs. Generate real values rather
+than reusing the placeholders:
+
+```bash
+openssl rand -base64 32          # -> JWT_SECRET
+openssl rand -base64 32          # -> ASSET_COOKIE_SECRET
+```
+
+| Secret | Used for |
+| --- | --- |
+| `JWT_SECRET` | signs the 15-minute HS256 access tokens (`worker/lib/jwt.ts`) |
+| `ASSET_COOKIE_SECRET` | signs the `mdn_at` cookie that lets `<img>`/`<object>` fetch R2 assets |
+
+Rotating either invalidates live sessions/asset cookies but destroys no data.
+
+### Inspecting the local database
+
+```bash
+npx wrangler d1 execute mdnotes --local --command "select name from sqlite_master where type='table'"
+npx wrangler d1 execute mdnotes --local --command "select id, email, is_guest from users"
+```
+
+### Tests
+
+```bash
+npm run typecheck     # tsc -b over the app / worker / node TS projects
+npm run lint          # eslint
+npm test              # vitest: `worker` project (Workers pool, real D1+R2) + `client` (jsdom)
+npm run test:e2e      # playwright; its webServer starts `npm run dev` for you
+npm run build         # client + worker bundles into dist/
+```
+
+`npx wrangler deploy --dry-run` also works without any Cloudflare credentials and is what CI should
+use as a deploy smoke check.
 
 ## Scripts
 
@@ -21,6 +64,8 @@ npm run dev                      # http://localhost:5173 — real Worker + local
 | --- | --- |
 | `npm run dev` | Vite dev server running the real Worker (Miniflare) with local D1/R2 |
 | `npm run build` | Build the client and Worker bundles into `dist/` |
+| `npm run preview` | Serve the built output locally |
+| `npm run deploy` | `wrangler deploy` (needs Cloudflare auth) |
 | `npm run typecheck` | `tsc -b` over the app / worker / node TS projects |
 | `npm run lint` | ESLint |
 | `npm test` | Vitest — `worker` project (Workers pool) + `client` project (jsdom) |
@@ -30,37 +75,203 @@ npm run dev                      # http://localhost:5173 — real Worker + local
 | `npm run db:migrate:remote` | Apply migrations to the remote D1 (needs Cloudflare auth) |
 | `npm run cf-typegen` | Regenerate `worker-configuration.d.ts` from `wrangler.jsonc` |
 
-## Before the first deploy
+---
 
-`wrangler.jsonc` ships with placeholder resource identifiers, and nothing in this repo has ever
-talked to a Cloudflare account. These steps need your credentials:
+## Deploying to Cloudflare
+
+Nothing in this repo has ever talked to a Cloudflare account: `wrangler.jsonc` ships with a
+placeholder D1 `database_id`, and no secrets have been uploaded. The steps below are the complete
+first-deploy procedure. Everything from step 1 onwards needs your credentials.
+
+### Prerequisites
+
+- A Cloudflare account. Workers **Free** is enough for this app as configured (see
+  [PBKDF2 iterations](#pbkdf2-iterations) below); Workers Paid ($5/mo) removes the 10 ms CPU cap.
+- Node 24+ and npm 11+ (`node -v`, `npm -v`).
+- `npm install` already run — wrangler is a dev dependency, so every command below is `npx wrangler`
+  and no global install is required.
+- `openssl` for generating secrets.
+
+### 1. Authenticate
 
 ```bash
-npx wrangler login
-npx wrangler d1 create mdnotes             # copy the printed id into d1_databases[0].database_id
-npx wrangler r2 bucket create mdnotes-assets
-npx wrangler secret put JWT_SECRET         # paste `openssl rand -base64 32`
-npx wrangler secret put ASSET_COOKIE_SECRET
-npm run db:migrate:remote
-npm run build && npm run deploy
+npx wrangler login          # opens a browser; or export CLOUDFLARE_API_TOKEN for CI
+npx wrangler whoami         # confirm the account you are about to deploy into
 ```
 
-`npx wrangler deploy --dry-run` works without any of the above and is what CI should use.
+For CI, use an API token with the *Edit Cloudflare Workers* template plus D1 and R2 edit
+permissions, and set `CLOUDFLARE_API_TOKEN` (and `CLOUDFLARE_ACCOUNT_ID` if the token spans several
+accounts) instead of running `wrangler login`.
 
-### Choose a PBKDF2 iteration count first
+### 2. Create the D1 database
 
-`PBKDF2_ITERATIONS` (a var in `wrangler.jsonc`, default `100000`) decides how much CPU a
-signup/login/upgrade costs. Measured on workerd by `worker/__tests__/auth.test.ts`:
+```bash
+npx wrangler d1 create mdnotes
+```
+
+This prints a block like:
+
+```
+[[d1_databases]]
+binding = "DB"
+database_name = "mdnotes"
+database_id = "b1e0...-....-....-....-............"
+```
+
+Copy that `database_id` into `wrangler.jsonc`, replacing the placeholder:
+
+```jsonc
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mdnotes",
+      // PLACEHOLDER — replace with the real id printed by `wrangler d1 create mdnotes`
+      "database_id": "00000000-0000-0000-0000-000000000000",   // <- paste the real id here
+      "migrations_dir": "migrations"
+    }
+  ],
+```
+
+Delete the `PLACEHOLDER` comment once it is real. Local dev and the test suite ignore this value, so
+it only matters for `--remote` commands and for deploys. Commit the change — the database id is not
+a secret.
+
+### 3. Create the R2 bucket
+
+```bash
+npx wrangler r2 bucket create mdnotes-assets
+```
+
+The bucket name must match `r2_buckets[0].bucket_name` in `wrangler.jsonc`. If you pick a different
+name, update the config too. Keep the bucket **private** — the Worker streams objects itself and
+enforces ownership; a public bucket would bypass that entirely.
+
+### 4. Upload the secrets
+
+```bash
+openssl rand -base64 32 | npx wrangler secret put JWT_SECRET
+openssl rand -base64 32 | npx wrangler secret put ASSET_COOKIE_SECRET
+```
+
+(Or run `npx wrangler secret put JWT_SECRET` interactively and paste a freshly generated value.)
+These are separate from `.dev.vars`, which is local-only and never uploaded. Verify with
+`npx wrangler secret list`.
+
+Rotating a secret later is the same command; it takes effect on the next deploy-free propagation and
+simply forces everyone to log in again.
+
+### 5. Apply the migrations to the remote database
+
+```bash
+npx wrangler d1 migrations list mdnotes --remote     # dry run: what is pending
+npm run db:migrate:remote                            # applies migrations/
+```
+
+### 6. Build and deploy
+
+```bash
+npm run typecheck && npm run lint && npm test        # gate the deploy on a green tree
+npm run build                                        # dist/client + the worker bundle
+npx wrangler deploy --dry-run                        # last check without publishing
+npm run deploy                                       # wrangler deploy
+```
+
+Wrangler prints the deployed URL (`https://mdnotes.<subdomain>.workers.dev`) and a **deployment
+id** — keep that id, it is what you roll back to.
+
+### 7. Post-deploy smoke test
+
+Against the printed URL:
+
+```bash
+curl -si https://mdnotes.<subdomain>.workers.dev/api/health
+# expect 200 and a content-security-policy header
+
+curl -si -X POST https://mdnotes.<subdomain>.workers.dev/api/auth/guest
+# expect 200, an accessToken in the JSON body, and Set-Cookie: mdn_rt=... plus mdn_at=...
+```
+
+Then in a browser, walk the primary flow once:
+
+1. Open the URL → **Continue as guest** → you land on `/projects`.
+2. Create a project.
+3. Drop a PNG and a PDF into the **Files** panel; both appear in the grid, and the eye icon opens
+   each one in a preview modal.
+4. Create a document, insert a mermaid diagram and a table from the **Insert** menu, add
+   `![](yourimage.png)` and `$E=mc^2$`.
+5. Confirm the preview pane renders the image, the KaTeX formula and the diagram, then toggle the
+   preview off and on.
+6. Hit **Save**, go to view mode, reload the page — the session survives via the refresh cookie.
+7. **Save your work** → sign up → confirm the project, document and uploads are all still there.
+8. Log out, log back in, confirm the same data.
+
+If step 7 hangs or 500s, check the CPU time in `npx wrangler tail` — that is the PBKDF2 budget.
+
+### 8. Custom domain
+
+Workers Static Assets serve fine from `*.workers.dev`, but for a real domain add the zone to your
+Cloudflare account and then either:
+
+- **Dashboard:** Workers & Pages → `mdnotes` → Settings → Domains & Routes → *Add* → Custom Domain,
+  enter `notes.example.com`. Cloudflare creates the DNS record and certificate.
+- **Config:** add a route to `wrangler.jsonc` and redeploy:
+
+  ```jsonc
+  "routes": [{ "pattern": "notes.example.com", "custom_domain": true }]
+  ```
+
+Notes for this app specifically:
+
+- Cookies are `Secure` and host-scoped, so moving between `*.workers.dev` and a custom domain simply
+  logs everyone out; nothing breaks.
+- `mdn_rt` is `SameSite=Strict` and `mdn_at` is `SameSite=Lax`, both first-party — the SPA and the
+  API must stay on the **same origin**. Do not split the API onto `api.example.com`.
+- The CSP in `worker/middleware/security.ts` is `default-src 'self'`; it needs no change for a
+  custom domain, but any third-party script/font/analytics you add will need an explicit entry.
+- HSTS is emitted only over HTTPS, so it starts applying automatically.
+
+### 9. Rolling back
+
+```bash
+npx wrangler deployments list                  # find the previous deployment id
+npx wrangler rollback <deployment-id>          # instant, no rebuild
+```
+
+Rollback only reverts **code**. D1 migrations are forward-only here, so if a release added a
+migration, roll the code back to a version whose schema expectations the migrated database still
+satisfies (additive migrations are safe; destructive ones are not). Deleted R2 objects are gone —
+project/asset deletion purges them explicitly in `worker/lib/r2.ts` and rollback does not restore
+them.
+
+---
+
+## PBKDF2 iterations
+
+`PBKDF2_ITERATIONS` is a plain var in `wrangler.jsonc` and decides how much CPU a signup, login or
+guest upgrade costs. Measured on workerd by `worker/__tests__/auth.test.ts`:
 
 | Iterations | CPU per hash |
 | --- | --- |
-| 100 000 | ~36 ms |
+| 100 000 | ~35 ms |
 | 25 000 | ~9 ms |
+| **12 500 (current default)** | **~4.6 ms** |
 
-The Workers **Free** plan caps CPU at 10 ms per request, so the default needs Workers Paid
-($5/mo). On the free plan set `PBKDF2_ITERATIONS` to `"25000"` before deploying. Guest login does
-no hashing and is unaffected either way, and `verifyPassword` reads the iteration count out of each
-stored hash, so changing this never locks existing users out.
+The Workers **Free** plan caps CPU at 10 ms per request. The repo therefore ships `"12500"`, which
+fits with headroom to spare and lets the whole app run on the free tier.
+
+**Be plain about what this is:** 12 500 iterations is a demo-tier tradeoff chosen to fit the Free
+plan's CPU cap, not a password-hashing recommendation. It is well below current guidance (OWASP
+suggests 600 000+ for PBKDF2-SHA256). A production deployment should move to Workers Paid — which
+has no 10 ms cap — and raise `PBKDF2_ITERATIONS` accordingly, e.g.:
+
+```jsonc
+"vars": { "PBKDF2_ITERATIONS": "600000" }
+```
+
+Changing the value is safe at any time: `verifyPassword` reads the iteration count out of each
+stored hash (`pbkdf2$sha256$<iters>$<salt>$<hash>`), so existing users keep logging in at whatever
+count their hash was written with, and new/changed passwords use the new one. Guest sessions do no
+hashing at all and are unaffected either way.
 
 ## Security notes
 
@@ -70,3 +281,5 @@ stored hash, so changing this never locks existing users out.
   read routes — a cookie alone can never mutate state.
 - Uploads are checked against an allow-list *and* a magic-byte sniff; SVG is rejected outright.
 - Markdown is sanitized before KaTeX and highlight.js run, and raw HTML is never rendered.
+- The CSP (`worker/middleware/security.ts`) is enforced on built output only; Vite's dev server
+  needs inline and eval'd scripts that `script-src 'self'` would block.
