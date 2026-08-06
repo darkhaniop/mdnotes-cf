@@ -1,7 +1,12 @@
 import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import { apiFetch, guestClient, json, uniqueEmail } from './helpers';
-import { hashPassword, resolveIterations, verifyPassword } from '../lib/password';
+import {
+  DEFAULT_PBKDF2_ITERATIONS,
+  hashPassword,
+  resolveIterations,
+  verifyPassword,
+} from '../lib/password';
 import { signAssetCookie, verifyAssetCookie } from '../lib/jwt';
 
 const REFRESH_COOKIE = /mdn_rt=([^;]+)/;
@@ -32,8 +37,8 @@ describe('password hashing', () => {
 
   it('resolveIterations falls back to the default for junk input', () => {
     expect(resolveIterations('25000')).toBe(25_000);
-    expect(resolveIterations(undefined)).toBe(100_000);
-    expect(resolveIterations('12')).toBe(100_000);
+    expect(resolveIterations(undefined)).toBe(DEFAULT_PBKDF2_ITERATIONS);
+    expect(resolveIterations('12')).toBe(DEFAULT_PBKDF2_ITERATIONS);
   });
 
   /**
@@ -54,7 +59,7 @@ describe('password hashing', () => {
       `PBKDF2 ${configured} iterations: ~${perHash.toFixed(1)} ms per hash ` +
         `(Workers Free plan allows 10 ms CPU per request)`,
     );
-    console.log(`PBKDF2 25000 iterations: ~${(await time(25_000)).toFixed(1)} ms per hash`);
+    console.log(`PBKDF2 100000 iterations: ~${(await time(100_000)).toFixed(1)} ms per hash`);
     expect(perHash).toBeLessThan(2000);
   });
 });

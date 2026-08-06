@@ -34,6 +34,6 @@
   ],
 
   "vars": {
-    "PBKDF2_ITERATIONS": "100000"
+    "PBKDF2_ITERATIONS": "12500"
   }
 }

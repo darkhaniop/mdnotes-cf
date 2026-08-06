@@ -21,7 +21,7 @@ export default defineConfig({
               bindings: {
                 JWT_SECRET: 'test-jwt-secret-not-for-production',
                 ASSET_COOKIE_SECRET: 'test-asset-cookie-secret',
-                PBKDF2_ITERATIONS: '100000',
+                PBKDF2_ITERATIONS: '12500',
                 TEST_MIGRATIONS: migrations,
               },
             },
