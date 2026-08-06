@@ -41,6 +41,14 @@ describe('password hashing', () => {
     expect(resolveIterations('12')).toBe(DEFAULT_PBKDF2_ITERATIONS);
   });
 
+  it('verifies hashes written at the old 100 000-iteration default', async () => {
+    // Back-compat guard for the drop to 12 500: the count lives in the stored
+    // hash, so accounts created before the change must still log in.
+    const legacy = await hashPassword('correct horse battery', 100_000);
+    expect(legacy).toMatch(/^pbkdf2\$sha256\$100000\$/);
+    expect(await verifyPassword('correct horse battery', legacy)).toBe(true);
+  });
+
   /**
    * The Workers Free plan caps CPU at 10 ms/request. This reports the wall time
    * for one PBKDF2 hash at the configured iteration count so the number is
@@ -48,6 +56,7 @@ describe('password hashing', () => {
    */
   it('reports PBKDF2 timing at the configured iteration count', async () => {
     const configured = resolveIterations(env.PBKDF2_ITERATIONS);
+    expect(configured).toBe(12_500);
     const runs = 5;
     const time = async (iterations: number) => {
       const start = Date.now();

@@ -1,4 +1,9 @@
-export const DEFAULT_PBKDF2_ITERATIONS = 100_000;
+/**
+ * Kept in step with `PBKDF2_ITERATIONS` in wrangler.jsonc: ~4-5 ms of CPU per
+ * hash on workerd, which fits the Workers Free plan's 10 ms budget. Only used
+ * when the binding is missing or unusable.
+ */
+export const DEFAULT_PBKDF2_ITERATIONS = 12_500;
 const SALT_BYTES = 16;
 const KEY_BITS = 256;
 
