@@ -59,6 +59,11 @@ test.describe('mdnotes primary flow', () => {
     await page.getByRole('button', { name: 'Create' }).click();
     await expect(page).toHaveURL(/\/docs\/[^/]+\/edit$/);
 
+    // Edit mode carries the same breadcrumb trail as view mode.
+    await expect(page.getByTestId('breadcrumbs')).toContainText('Projects');
+    await expect(page.getByTestId('breadcrumbs')).toContainText('Field Notes');
+    await expect(page.getByTestId('document-title')).toHaveText('Observations');
+
     await typeIntoEditor(page, DOCUMENT_SOURCE);
 
     const preview = page.getByTestId('markdown-preview');
@@ -91,8 +96,14 @@ test.describe('mdnotes primary flow', () => {
     await page.getByTestId('done-editing').click();
     await expect(page).toHaveURL(/\/docs\/[^/]+$/);
 
+    // The breadcrumb replaced the old <h1>: ancestors are links, the current
+    // document is plain text.
+    const crumbs = page.getByTestId('breadcrumbs');
+    await expect(crumbs.getByRole('link', { name: 'Projects' })).toBeVisible();
+    await expect(crumbs.getByRole('link', { name: 'Field Notes' })).toBeVisible();
     const viewTitle = page.getByTestId('document-title');
     await expect(viewTitle).toHaveText('Observations');
+    await expect(viewTitle).toHaveAttribute('aria-current', 'page');
     const viewPreview = page.getByTestId('markdown-preview');
     await expect(viewPreview.getByRole('heading', { name: 'Field notes' })).toBeVisible();
     await expect(viewPreview.getByAltText('a screenshot')).toBeVisible();
@@ -116,6 +127,10 @@ test.describe('mdnotes primary flow', () => {
     await page.getByTestId('document-link').click();
     await expect(page.getByTestId('document-title')).toHaveText('Observations');
     await expect(page.getByTestId('markdown-preview').getByAltText('a screenshot')).toBeVisible();
+
+    // The project crumb walks back up the trail.
+    await page.getByTestId('breadcrumbs').getByRole('link', { name: 'Field Notes' }).click();
+    await expect(page.getByTestId('project-title')).toHaveText('Field Notes');
   });
 
   test('log out and log back in returns the same data', async ({ page }) => {

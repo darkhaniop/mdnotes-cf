@@ -2,13 +2,14 @@ import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'reac
 import { Link, useNavigate, useParams } from 'react-router';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { toast } from 'sonner';
-import { ChevronLeft, Eye, EyeOff, Save } from 'lucide-react';
+import { Eye, EyeOff, Save } from 'lucide-react';
 import type { AssetDto } from '@shared/schemas/asset';
 import { isImageMime } from '@shared/schemas/asset';
 import { ApiError } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DocumentBreadcrumbs } from '@/components/layout/Breadcrumbs';
 import { MarkdownPreview } from '@/components/markdown/MarkdownPreview';
 import {
   MarkdownEditor,
@@ -153,12 +154,11 @@ export function DocumentEdit() {
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
-        <Link
-          to={`/projects/${projectId}`}
-          className="text-muted-foreground inline-flex items-center gap-1 text-sm hover:underline"
-        >
-          <ChevronLeft className="size-4" />
-        </Link>
+        <DocumentBreadcrumbs
+          projectId={projectId}
+          title={title.trim() || 'Untitled'}
+          className="max-w-[18rem] min-w-0 shrink"
+        />
         <Input
           aria-label="Document title"
           data-testid="title-input"

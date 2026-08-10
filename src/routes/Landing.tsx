@@ -33,8 +33,8 @@ export function Landing() {
         <NotebookPen className="size-8" />
         <h1 className="text-4xl font-semibold tracking-tight">mdnotes</h1>
         <p className="text-muted-foreground">
-          Markdown notebooks with math, diagrams and your own images. Start writing immediately —
-          no account needed, and you can keep everything later by signing up.
+          Markdown editor with preview. Start writing immediately — no account needed, and you can
+          keep everything later by signing up.
         </p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">
