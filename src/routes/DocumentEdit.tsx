@@ -15,6 +15,8 @@ import {
   MarkdownEditor,
   type MarkdownEditorHandle,
 } from '@/components/editor/MarkdownEditor';
+import { InsertBlockMenu } from '@/components/editor/InsertBlockMenu';
+import type { MarkdownSnippet } from '@/components/editor/markdown-snippets';
 import { AssetPanel } from '@/components/project/AssetPanel';
 import { useDocument, useUpdateDocument } from '@/hooks/useDocuments';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -124,6 +126,13 @@ export function DocumentEdit() {
     editor.current?.insertAtCursor(snippet);
   }, []);
 
+  // Same insert-at-cursor path as the asset panel; CodeMirror's onChange is what
+  // marks the document dirty.
+  const insertSnippet = useCallback((snippet: MarkdownSnippet) => {
+    edited.current = true;
+    editor.current?.insertAtCursor(snippet.text);
+  }, []);
+
   // Below md a horizontal split leaves both panes unusable, so it stacks.
   const isWide = useMediaQuery('(min-width: 768px)');
   const splitOrientation = isWide ? 'horizontal' : 'vertical';
@@ -180,6 +189,7 @@ export function DocumentEdit() {
                 : 'Unsaved changes'}
         </span>
         <div className="flex-1" />
+        <InsertBlockMenu onInsert={insertSnippet} />
         <Button
           size="sm"
           variant="outline"

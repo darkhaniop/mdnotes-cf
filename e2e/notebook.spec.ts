@@ -85,6 +85,14 @@ test.describe('mdnotes primary flow', () => {
     });
     await expect(preview.getByTestId('mermaid-error')).toHaveCount(0);
 
+    // The helper panel inserts a working block at the cursor.
+    await page.getByTestId('markdown-editor').locator('.cm-content').click();
+    await page.keyboard.press('Control+End');
+    await page.getByTestId('insert-block').click();
+    await page.getByTestId('insert-table').click();
+    await expect(preview.getByRole('table')).toBeVisible();
+    await expect(preview.getByRole('columnheader', { name: 'Column A' })).toBeVisible();
+
     // Hide the preview.
     await page.getByTestId('toggle-preview').click();
     await expect(preview).toHaveCount(0);
