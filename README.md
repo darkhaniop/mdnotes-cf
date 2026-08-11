@@ -202,8 +202,14 @@ Then in a browser, walk the primary flow once:
 5. Confirm the preview pane renders the image, the KaTeX formula and the diagram, then toggle the
    preview off and on.
 6. Hit **Save**, go to view mode, reload the page — the session survives via the refresh cookie.
-7. **Save your work** → sign up → confirm the project, document and uploads are all still there.
-8. Log out, log back in, confirm the same data.
+7. Switch the theme control in the header between System, Light and Dark; the page follows, and
+   the choice survives a reload.
+8. **Save your work** → **Continue as guest** → you are back where you were, still the same guest.
+9. **Save your work** → sign up → confirm the project, document and uploads are all still there.
+10. Log out, log back in, confirm the same data.
+
+The theme preference is client-side only (localStorage, via the Zustand `ui-store`), so it needs no
+schema, no endpoint and no migration.
 
 If step 7 hangs or 500s, check the CPU time in `npx wrangler tail` — that is the PBKDF2 budget.
 
