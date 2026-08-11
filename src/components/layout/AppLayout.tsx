@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation } from 'react-router';
 import { NotebookPen } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { useAuth } from '@/hooks/useAuth';
 
 export function AppLayout() {
@@ -32,6 +33,7 @@ export function AppLayout() {
               {user?.email}
             </span>
           )}
+          <ThemeToggle />
           <Button size="sm" variant="ghost" onClick={() => void logout()}>
             Log out
           </Button>

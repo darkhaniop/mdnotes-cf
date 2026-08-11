@@ -210,6 +210,24 @@ test.describe('mdnotes primary flow', () => {
     await expect(page.getByRole('link', { name: 'Escape Hatch' })).toBeVisible();
   });
 
+  test('the theme follows the system by default and remembers a choice', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await continueAsGuest(page);
+    await expect(page.locator('html')).toHaveClass(/dark/);
+
+    // "System" is live, not read once at boot.
+    await page.emulateMedia({ colorScheme: 'light' });
+    await expect(page.locator('html')).toHaveClass(/light/);
+
+    // An explicit choice overrides the system and survives a reload.
+    await page.getByTestId('theme-toggle').click();
+    await page.getByTestId('theme-dark').click();
+    await expect(page.locator('html')).toHaveClass(/dark/);
+    await page.reload();
+    await expect(page.locator('html')).toHaveClass(/dark/);
+    await expect(page.getByTestId('theme-toggle')).toHaveAttribute('data-theme', 'dark');
+  });
+
   test('a reload keeps the session via the refresh cookie', async ({ page }) => {
     await continueAsGuest(page);
     await createProject(page, 'Reloadable');

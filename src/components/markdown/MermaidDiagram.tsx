@@ -1,18 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { useResolvedTheme } from '@/hooks/useTheme';
 
 let mermaidReady: Promise<typeof import('mermaid').default> | null = null;
 
 /** ~500 KB, so it is only pulled in when a document actually contains a diagram. */
 function loadMermaid() {
-  mermaidReady ??= import('mermaid').then(({ default: mermaid }) => {
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: 'strict',
-      theme: 'dark',
-      fontFamily: 'inherit',
-    });
-    return mermaid;
-  });
+  mermaidReady ??= import('mermaid').then(({ default: mermaid }) => mermaid);
   return mermaidReady;
 }
 
@@ -22,6 +15,7 @@ export function MermaidDiagram({ code }: { code: string }) {
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const container = useRef<HTMLDivElement>(null);
+  const theme = useResolvedTheme();
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +28,15 @@ export function MermaidDiagram({ code }: { code: string }) {
     void (async () => {
       try {
         const mermaid = await loadMermaid();
+        // Re-initialised per render rather than once at import: the diagram has
+        // to follow the active theme, and mermaid bakes the palette into the SVG
+        // it emits.
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: 'strict',
+          theme: theme === 'dark' ? 'dark' : 'default',
+          fontFamily: 'inherit',
+        });
         const { svg: rendered } = await mermaid.render(id, source);
         if (!cancelled) {
           setSvg(rendered);
@@ -51,7 +54,7 @@ export function MermaidDiagram({ code }: { code: string }) {
     return () => {
       cancelled = true;
     };
-  }, [code, id]);
+  }, [code, id, theme]);
 
   if (error) {
     return (

@@ -3,6 +3,7 @@ import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { EditorView } from '@codemirror/view';
+import { useResolvedTheme } from '@/hooks/useTheme';
 
 export type MarkdownEditorHandle = {
   /** Inserts text at the cursor (used by the asset panel). */
@@ -28,6 +29,7 @@ const theme = EditorView.theme({
 
 export function MarkdownEditor({ value, onChange, onSave, ref }: MarkdownEditorProps) {
   const cm = useRef<ReactCodeMirrorRef>(null);
+  const resolvedTheme = useResolvedTheme();
 
   useImperativeHandle(ref, () => ({
     insertAtCursor(text: string) {
@@ -52,7 +54,7 @@ export function MarkdownEditor({ value, onChange, onSave, ref }: MarkdownEditorP
         value={value}
         onChange={onChange}
         height="100%"
-        theme="dark"
+        theme={resolvedTheme}
         basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: false }}
         extensions={[
           markdown({ base: markdownLanguage, codeLanguages: languages }),

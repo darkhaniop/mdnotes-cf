@@ -1,8 +1,12 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- No theme class on <html> on purpose: index.css follows
+         prefers-color-scheme until src/lib/theme.ts pins the stored choice,
+         which it does before the first render. -->
+    <meta name="color-scheme" content="light dark" />
     <title>mdnotes</title>
     <meta name="description" content="A markdown notebook that runs on the edge." />
   </head>

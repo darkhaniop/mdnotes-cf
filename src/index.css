@@ -28,49 +28,43 @@
   --radius-sm: calc(var(--radius) - 4px);
 }
 
+/* Every themed value is a light/dark pair resolved by `light-dark()` against the
+   used `color-scheme`. `src/lib/theme.ts` pins that scheme by putting `light` or
+   `dark` on <html>; until React mounts neither class is there, `color-scheme:
+   light dark` applies, and the document follows prefers-color-scheme on its own.
+   That is what keeps the first paint right without the usual inline theme
+   script, which `script-src 'self'` in worker/middleware/security.ts forbids. */
 :root {
+  color-scheme: light dark;
+
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --background: light-dark(oklch(1 0 0), oklch(0.145 0 0));
+  --foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
+  --card: light-dark(oklch(1 0 0), oklch(0.205 0 0));
+  --card-foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
+  --popover: light-dark(oklch(1 0 0), oklch(0.205 0 0));
+  --popover-foreground: light-dark(oklch(0.145 0 0), oklch(0.985 0 0));
+  --primary: light-dark(oklch(0.205 0 0), oklch(0.922 0 0));
+  --primary-foreground: light-dark(oklch(0.985 0 0), oklch(0.205 0 0));
+  --secondary: light-dark(oklch(0.97 0 0), oklch(0.269 0 0));
+  --secondary-foreground: light-dark(oklch(0.205 0 0), oklch(0.985 0 0));
+  --muted: light-dark(oklch(0.97 0 0), oklch(0.269 0 0));
+  --muted-foreground: light-dark(oklch(0.556 0 0), oklch(0.708 0 0));
+  --accent: light-dark(oklch(0.97 0 0), oklch(0.269 0 0));
+  --accent-foreground: light-dark(oklch(0.205 0 0), oklch(0.985 0 0));
+  --destructive: light-dark(oklch(0.577 0.245 27.325), oklch(0.704 0.191 22.216));
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: light-dark(oklch(0.922 0 0), oklch(1 0 0 / 12%));
+  --input: light-dark(oklch(0.922 0 0), oklch(1 0 0 / 18%));
+  --ring: light-dark(oklch(0.708 0 0), oklch(0.556 0 0));
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 18%);
-  --ring: oklch(0.556 0 0);
+:root.light {
+  color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
 }
 
 @layer base {
@@ -183,4 +177,65 @@
   overflow-x: auto;
   overflow-y: hidden;
   padding: 0.25rem 0;
+}
+/* KaTeX inherits `color`, so it follows --foreground on its own. */
+
+/* highlight.js tokens. `highlight.js/styles/github-dark.css` used to be imported
+   unconditionally, which left code blocks dark-on-light once a light theme
+   existed. These are GitHub's light/dark syntax pairs, resolved by light-dark()
+   like everything else, and the block background stays --muted. */
+.mdnotes-prose .hljs {
+  background: transparent;
+  color: inherit;
+}
+.mdnotes-prose .hljs-comment,
+.mdnotes-prose .hljs-quote {
+  color: light-dark(#6a737d, #8b949e);
+  font-style: italic;
+}
+.mdnotes-prose .hljs-keyword,
+.mdnotes-prose .hljs-selector-tag,
+.mdnotes-prose .hljs-doctag,
+.mdnotes-prose .hljs-name,
+.mdnotes-prose .hljs-tag {
+  color: light-dark(#d73a49, #ff7b72);
+}
+.mdnotes-prose .hljs-string,
+.mdnotes-prose .hljs-regexp,
+.mdnotes-prose .hljs-addition,
+.mdnotes-prose .hljs-meta .hljs-string {
+  color: light-dark(#032f62, #a5d6ff);
+}
+.mdnotes-prose .hljs-number,
+.mdnotes-prose .hljs-literal,
+.mdnotes-prose .hljs-variable,
+.mdnotes-prose .hljs-template-variable,
+.mdnotes-prose .hljs-type,
+.mdnotes-prose .hljs-params,
+.mdnotes-prose .hljs-built_in,
+.mdnotes-prose .hljs-selector-id,
+.mdnotes-prose .hljs-selector-class {
+  color: light-dark(#005cc5, #79c0ff);
+}
+.mdnotes-prose .hljs-title,
+.mdnotes-prose .hljs-section,
+.mdnotes-prose .hljs-title.function_,
+.mdnotes-prose .hljs-title.class_ {
+  color: light-dark(#6f42c1, #d2a8ff);
+}
+.mdnotes-prose .hljs-attr,
+.mdnotes-prose .hljs-attribute,
+.mdnotes-prose .hljs-symbol,
+.mdnotes-prose .hljs-bullet,
+.mdnotes-prose .hljs-meta {
+  color: light-dark(#e36209, #ffa657);
+}
+.mdnotes-prose .hljs-deletion {
+  color: light-dark(#b31d28, #ffa198);
+}
+.mdnotes-prose .hljs-emphasis {
+  font-style: italic;
+}
+.mdnotes-prose .hljs-strong {
+  font-weight: 600;
 }
