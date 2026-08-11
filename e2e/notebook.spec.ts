@@ -164,6 +164,33 @@ test.describe('mdnotes primary flow', () => {
     await expect(page.getByRole('link', { name: 'Persisted' })).toBeVisible();
   });
 
+  test('a guest can back out of the auth screens without losing the session', async ({ page }) => {
+    await continueAsGuest(page);
+    await createProject(page, 'Escape Hatch');
+    const projectUrl = page.url();
+
+    // Save your work -> signup is otherwise a dead end.
+    await page.getByRole('link', { name: 'Save your work' }).click();
+    await expect(page).toHaveURL(/\/signup$/);
+    await page.getByTestId('continue-as-guest').click();
+    await expect(page).toHaveURL(projectUrl);
+    await expect(page.getByTestId('project-title')).toHaveText('Escape Hatch');
+
+    // Same guest, same work — not a fresh session.
+    await expect(page.getByText('Guest', { exact: true })).toBeVisible();
+    await page.getByRole('link', { name: 'mdnotes' }).click();
+    await expect(page).toHaveURL(/\/projects$/);
+    await expect(page.getByRole('link', { name: 'Escape Hatch' })).toBeVisible();
+
+    // The hop through /login keeps the escape hatch too.
+    await page.getByRole('link', { name: 'Save your work' }).click();
+    await page.getByRole('link', { name: 'Log in' }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    await page.getByTestId('continue-as-guest').click();
+    await expect(page).toHaveURL(/\/projects$/);
+    await expect(page.getByRole('link', { name: 'Escape Hatch' })).toBeVisible();
+  });
+
   test('a reload keeps the session via the refresh cookie', async ({ page }) => {
     await continueAsGuest(page);
     await createProject(page, 'Reloadable');

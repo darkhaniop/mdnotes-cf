@@ -1,12 +1,14 @@
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { ApiError, authApi } from '@/lib/api-client';
+import { ContinueAsGuest } from '@/components/layout/ContinueAsGuest';
 import { CredentialsForm } from '@/components/layout/CredentialsForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthStore } from '@/lib/auth-store';
 
 export function Signup() {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const isGuest = user?.isGuest ?? false;
 
@@ -41,9 +43,11 @@ export function Signup() {
               }
             }}
           />
+          <ContinueAsGuest />
           <p className="text-muted-foreground text-sm">
             Already have an account?{' '}
-            <Link className="underline underline-offset-4" to="/login">
+            {/* Carries the return path across, so the escape hatch survives the hop. */}
+            <Link className="underline underline-offset-4" to="/login" state={location.state}>
               Log in
             </Link>
           </p>

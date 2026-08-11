@@ -1,4 +1,4 @@
-import { Link, Outlet } from 'react-router';
+import { Link, Outlet, useLocation } from 'react-router';
 import { NotebookPen } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export function AppLayout() {
   const { user, isGuest, logout } = useAuth();
+  const location = useLocation();
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -20,7 +21,10 @@ export function AppLayout() {
             <>
               <Badge>Guest</Badge>
               <Button asChild size="sm" variant="outline">
-                <Link to="/signup">Save your work</Link>
+                {/* `from` is what "Continue as guest" on /signup returns to. */}
+                <Link to="/signup" state={{ from: location.pathname + location.search }}>
+                  Save your work
+                </Link>
               </Button>
             </>
           ) : (
