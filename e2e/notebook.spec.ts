@@ -80,7 +80,8 @@ test.describe('mdnotes primary flow', () => {
     // Edit mode carries the same breadcrumb trail as view mode.
     await expect(page.getByTestId('breadcrumbs')).toContainText('Projects');
     await expect(page.getByTestId('breadcrumbs')).toContainText('Field Notes');
-    await expect(page.getByTestId('document-title')).toHaveText('Observations');
+    await expect(page.getByTestId('breadcrumbs')).toContainText('Observations');
+    await expect(page.getByTestId('document-title')).toHaveCount(0);
 
     await typeIntoEditor(page, DOCUMENT_SOURCE);
 

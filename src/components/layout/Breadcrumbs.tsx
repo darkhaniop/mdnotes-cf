@@ -65,10 +65,12 @@ export function DocumentBreadcrumbs({
   projectId,
   title,
   className,
+  currentTestId,
 }: {
   projectId: string;
   title: string;
   className?: string;
+  currentTestId?: string;
 }) {
   const { data: project, isPending } = useProject(projectId);
 
@@ -82,7 +84,7 @@ export function DocumentBreadcrumbs({
           to: `/projects/${projectId}`,
           loading: isPending && !project,
         },
-        { label: title, testId: 'document-title' },
+        { label: title, testId: currentTestId },
       ]}
     />
   );

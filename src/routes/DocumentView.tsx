@@ -36,6 +36,7 @@ export function DocumentView() {
         <DocumentBreadcrumbs
           projectId={projectId}
           title={document.title}
+          currentTestId="document-title"
           className="min-w-0 flex-1"
         />
         <Button asChild size="sm" data-testid="edit-document">

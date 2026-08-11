@@ -23,7 +23,11 @@ function renderWithProject(project?: ProjectDto) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <DocumentBreadcrumbs projectId="proj-1" title="Observations" />
+        <DocumentBreadcrumbs
+          projectId="proj-1"
+          title="Observations"
+          currentTestId="document-title"
+        />
       </MemoryRouter>
     </QueryClientProvider>,
   );
