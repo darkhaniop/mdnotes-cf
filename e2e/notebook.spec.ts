@@ -53,6 +53,24 @@ test.describe('mdnotes primary flow', () => {
     await page.getByTestId('asset-input').setInputFiles(PNG_FIXTURE);
     await expect(page.getByTestId('asset-grid').getByText('shot.png')).toBeVisible();
 
+    // Open the upload in a modal: the image loads through the mdn_at cookie.
+    await page.getByRole('button', { name: 'Preview shot.png' }).click();
+    const assetModal = page.getByTestId('asset-preview');
+    await expect(assetModal).toContainText('shot.png');
+    const modalImage = assetModal.getByTestId('asset-preview-image');
+    await expect
+      .poll(() => modalImage.evaluate((el: HTMLImageElement) => el.naturalWidth), {
+        timeout: 15_000,
+      })
+      .toBeGreaterThan(0);
+    await expect(assetModal.getByTestId('asset-download')).toHaveAttribute('download', 'shot.png');
+    await expect(assetModal.getByRole('link', { name: 'Open in a new tab' })).toHaveAttribute(
+      'target',
+      '_blank',
+    );
+    await page.keyboard.press('Escape');
+    await expect(assetModal).toHaveCount(0);
+
     // Create a document; the app drops straight into edit mode.
     await page.getByTestId('new-document').click();
     await page.getByLabel('Title').fill('Observations');
