@@ -1,9 +1,23 @@
-import { Fragment } from 'react';
+import { Fragment, useRef } from 'react';
 import { Link } from 'react-router';
 import { ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useProject } from '@/hooks/useProjects';
+
+export type CrumbEdit = {
+  /** Accessible name for the field — the label text itself is the value. */
+  label: string;
+  onChange: (next: string) => void;
+  /**
+   * Enter or blur. Receives the value being committed rather than reading it
+   * from the caller's state, which is still the pre-Escape one at that point.
+   */
+  onCommit?: (value: string) => void;
+  placeholder?: string;
+  /** Hover hint; falls back to `label`. */
+  hint?: string;
+};
 
 export type Crumb = {
   label: string;
@@ -12,7 +26,56 @@ export type Crumb = {
   testId?: string;
   /** Shows a fixed-height placeholder in place of the label while it loads. */
   loading?: boolean;
+  /** Turns the segment into an in-place editable field. Only valid without `to`. */
+  edit?: CrumbEdit;
 };
+
+function EditableCrumb({ value, edit, testId }: { value: string; edit: CrumbEdit; testId?: string }) {
+  /** The value as of the last focus, restored by Escape. */
+  const revertTo = useRef(value);
+  /** What blur will commit. Escape rewrites it before blurring. */
+  const pending = useRef(value);
+  pending.current = value;
+
+  return (
+    <span className="relative inline-grid min-w-[5rem] max-w-[16rem] items-center">
+      <span
+        aria-hidden="true"
+        className="invisible col-start-1 row-start-1 truncate px-1.5 font-medium whitespace-pre"
+      >
+        {value || edit.placeholder || ''}
+      </span>
+      <input
+        type="text"
+        value={value}
+        data-testid={testId}
+        aria-label={edit.label}
+        aria-current="page"
+        placeholder={edit.placeholder}
+        // Nothing else in the header is editable, so the field needs to say so
+        // on hover; there is no tooltip primitive in components/ui.
+        title={edit.hint ?? edit.label}
+        className="text-foreground hover:bg-accent focus:bg-background col-start-1 row-start-1 w-full min-w-0 truncate rounded-md border border-transparent bg-transparent px-1.5 py-0.5 font-medium focus:border-[var(--border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        onFocus={() => {
+          revertTo.current = value;
+        }}
+        onChange={(event) => edit.onChange(event.target.value)}
+        onBlur={() => edit.onCommit?.(pending.current)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            event.currentTarget.blur();
+          } else if (event.key === 'Escape') {
+            event.preventDefault();
+            pending.current = revertTo.current;
+            edit.onChange(revertTo.current);
+            event.currentTarget.blur();
+          }
+        }}
+      />
+    </span>
+  );
+}
 
 export function Breadcrumbs({ items, className }: { items: Crumb[]; className?: string }) {
   return (
@@ -31,6 +94,8 @@ export function Breadcrumbs({ items, className }: { items: Crumb[]; className?: 
             <li className="min-w-0">
               {item.loading ? (
                 <Skeleton className="h-4 w-24" data-testid={item.testId} />
+              ) : item.edit ? (
+                <EditableCrumb value={item.label} edit={item.edit} testId={item.testId} />
               ) : item.to ? (
                 <Link
                   to={item.to}
@@ -66,11 +131,13 @@ export function DocumentBreadcrumbs({
   title,
   className,
   currentTestId,
+  edit,
 }: {
   projectId: string;
   title: string;
   className?: string;
   currentTestId?: string;
+  edit?: CrumbEdit;
 }) {
   const { data: project, isPending } = useProject(projectId);
 
@@ -84,7 +151,7 @@ export function DocumentBreadcrumbs({
           to: `/projects/${projectId}`,
           loading: isPending && !project,
         },
-        { label: title, testId: currentTestId },
+        { label: title, testId: currentTestId, edit },
       ]}
     />
   );

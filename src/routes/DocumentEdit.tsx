@@ -7,7 +7,6 @@ import type { AssetDto } from '@shared/schemas/asset';
 import { isImageMime } from '@shared/schemas/asset';
 import { ApiError } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DocumentBreadcrumbs } from '@/components/layout/Breadcrumbs';
 import { MarkdownPreview } from '@/components/markdown/MarkdownPreview';
@@ -107,6 +106,23 @@ export function DocumentEdit() {
 
   const saveNow = useCallback(() => void save({ title, content }), [save, title, content]);
 
+  const editTitle = useCallback((next: string) => {
+    edited.current = true;
+    setTitle(next);
+    setSaveState('dirty');
+  }, []);
+
+  // Enter/blur on the title flushes the rename immediately instead of waiting
+  // out the autosave debounce. `next` is passed in because Escape restores the
+  // old value in the same event, before `title` has re-rendered.
+  const commitTitle = useCallback(
+    (next: string) => {
+      if (!document || (next.trim() || 'Untitled') === document.title) return;
+      void save({ title: next, content });
+    },
+    [document, save, content],
+  );
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
@@ -165,19 +181,16 @@ export function DocumentEdit() {
       <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
         <DocumentBreadcrumbs
           projectId={projectId}
-          title={title.trim() || 'Untitled'}
-          className="max-w-[18rem] min-w-0 shrink"
-        />
-        <Input
-          aria-label="Document title"
-          data-testid="title-input"
-          value={title}
-          onChange={(e) => {
-            edited.current = true;
-            setTitle(e.target.value);
-            setSaveState('dirty');
+          title={title}
+          className="min-w-0 shrink"
+          currentTestId="title-input"
+          edit={{
+            label: 'Document title',
+            hint: 'Rename this document',
+            placeholder: 'Untitled',
+            onChange: editTitle,
+            onCommit: commitTitle,
           }}
-          className="h-8 max-w-xs flex-1"
         />
         <span className="text-muted-foreground text-xs" data-testid="save-state">
           {saveState === 'saving'
