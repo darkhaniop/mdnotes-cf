@@ -3,6 +3,7 @@ import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DocumentBreadcrumbs } from '@/components/layout/Breadcrumbs';
+import { DocumentExportActions } from '@/components/project/DocumentExportActions';
 import { MarkdownPreview } from '@/components/markdown/MarkdownPreview';
 import { useDocument } from '@/hooks/useDocuments';
 
@@ -32,18 +33,21 @@ export function DocumentView() {
 
   return (
     <article className="mx-auto w-full max-w-3xl flex-1 p-4 sm:p-6">
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <DocumentBreadcrumbs
           projectId={projectId}
           title={document.title}
           currentTestId="document-title"
           className="min-w-0 flex-1"
         />
-        <Button asChild size="sm" data-testid="edit-document">
-          <Link to={`/projects/${projectId}/docs/${docId}/edit`}>
-            <Pencil /> Edit
-          </Link>
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <DocumentExportActions title={document.title} content={document.content} />
+          <Button asChild size="sm" data-testid="edit-document">
+            <Link to={`/projects/${projectId}/docs/${docId}/edit`}>
+              <Pencil /> Edit
+            </Link>
+          </Button>
+        </div>
       </div>
       {document.content.trim() ? (
         <MarkdownPreview content={document.content} projectId={projectId} />

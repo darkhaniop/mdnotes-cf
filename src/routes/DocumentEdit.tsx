@@ -9,6 +9,7 @@ import { ApiError } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DocumentBreadcrumbs } from '@/components/layout/Breadcrumbs';
+import { DocumentExportActions } from '@/components/project/DocumentExportActions';
 import { MarkdownPreview } from '@/components/markdown/MarkdownPreview';
 import {
   MarkdownEditor,
@@ -226,6 +227,7 @@ export function DocumentEdit() {
           {previewVisible ? 'Hide preview' : 'Show preview'}
         </Button>
         <div className="flex items-center gap-2">
+          <DocumentExportActions title={title} content={content} />
           <Button size="sm" variant="outline" onClick={saveNow} data-testid="save-document">
             <Save /> Save
           </Button>
