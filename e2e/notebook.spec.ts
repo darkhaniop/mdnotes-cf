@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Download, type Page } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 const PNG_FIXTURE = fileURLToPath(new URL('./fixtures/shot.png', import.meta.url));
@@ -32,6 +33,18 @@ async function createProject(page: Page, name: string) {
   await page.getByLabel('Name').fill(name);
   await page.getByRole('button', { name: 'Create project' }).click();
   await expect(page.getByTestId('project-title')).toHaveText(name);
+}
+
+async function readDownload(download: Download): Promise<string> {
+  const path = await download.path();
+  return readFile(path, 'utf8');
+}
+
+async function createDocument(page: Page, title: string) {
+  await page.getByTestId('new-document').click();
+  await page.getByLabel('Title').fill(title);
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page).toHaveURL(/\/docs\/[^/]+\/edit$/);
 }
 
 async function typeIntoEditor(page: Page, text: string) {
@@ -72,16 +85,15 @@ test.describe('mdnotes primary flow', () => {
     await expect(assetModal).toHaveCount(0);
 
     // Create a document; the app drops straight into edit mode.
-    await page.getByTestId('new-document').click();
-    await page.getByLabel('Title').fill('Observations');
-    await page.getByRole('button', { name: 'Create' }).click();
-    await expect(page).toHaveURL(/\/docs\/[^/]+\/edit$/);
+    await createDocument(page, 'Observations');
 
     // Edit mode carries the same breadcrumb trail as view mode.
     await expect(page.getByTestId('breadcrumbs')).toContainText('Projects');
     await expect(page.getByTestId('breadcrumbs')).toContainText('Field Notes');
-    await expect(page.getByTestId('breadcrumbs')).toContainText('Observations');
     await expect(page.getByTestId('document-title')).toHaveCount(0);
+    const titleField = page.getByTestId('title-input');
+    await expect(titleField).toHaveValue('Observations');
+    await expect(page.getByRole('textbox', { name: 'Document title' })).toHaveCount(1);
 
     await typeIntoEditor(page, DOCUMENT_SOURCE);
 
@@ -116,6 +128,14 @@ test.describe('mdnotes primary flow', () => {
     await page.getByTestId('toggle-preview').click();
     await expect(preview).toHaveCount(0);
     await expect(page.getByTestId('markdown-editor')).toBeVisible();
+
+    // The editor exports the live buffer, before it has been saved.
+    const editDownload = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('download-document').click(),
+    ]);
+    expect(editDownload[0].suggestedFilename()).toBe('observations.md');
+    expect(await readDownload(editDownload[0])).toContain('![a screenshot](shot.png)');
 
     // Save explicitly, then switch to view mode.
     await page.getByTestId('save-document').click();
@@ -158,6 +178,97 @@ test.describe('mdnotes primary flow', () => {
     // The project crumb walks back up the trail.
     await page.getByTestId('breadcrumbs').getByRole('link', { name: 'Field Notes' }).click();
     await expect(page.getByTestId('project-title')).toHaveText('Field Notes');
+  });
+
+  test('the breadcrumb title is the only title, and it edits in place', async ({ page }) => {
+    await continueAsGuest(page);
+    await createProject(page, 'Renames');
+    await createDocument(page, 'First draft');
+
+    const title = page.getByTestId('title-input');
+    // One title in the header, and it is the editable control itself.
+    await expect(page.getByRole('textbox', { name: 'Document title' })).toHaveCount(1);
+    await expect(title).toHaveValue('First draft');
+
+    // Fully operable from the keyboard: focus it, retype, commit with Enter.
+    await title.focus();
+    await expect(title).toBeFocused();
+    await page.keyboard.press('Control+A');
+    await page.keyboard.type('Second draft');
+    await expect(page.getByTestId('save-state')).toHaveText('Unsaved changes');
+    await page.keyboard.press('Enter');
+    await expect(title).not.toBeFocused();
+    await expect(page.getByTestId('save-state')).toHaveText('Saved');
+
+    // Escape abandons an in-progress rename rather than committing it.
+    await title.focus();
+    await page.keyboard.press('Control+A');
+    await page.keyboard.type('Throwaway');
+    await expect(title).toHaveValue('Throwaway');
+    await page.keyboard.press('Escape');
+    await expect(title).toHaveValue('Second draft');
+
+    // The committed rename reached the server: view mode and the project list
+    // both show it after a reload.
+    await page.getByTestId('done-editing').click();
+    await expect(page.getByTestId('document-title')).toHaveText('Second draft');
+    await page.reload();
+    await expect(page.getByTestId('document-title')).toHaveText('Second draft');
+    await page.getByTestId('breadcrumbs').getByRole('link', { name: 'Renames' }).click();
+    await expect(page.getByTestId('document-list').getByText('Second draft')).toBeVisible();
+  });
+
+  test('Done leaves the editor even when the save fails', async ({ page }) => {
+    await continueAsGuest(page);
+    await createProject(page, 'Offline');
+    await createDocument(page, 'Unreachable');
+
+    await typeIntoEditor(page, 'work the user does not want to lose');
+    // Every write from here on fails. `save` toasts, and Done must still leave —
+    // trapping the user in the editor is what makes the button look broken.
+    await page.route('**/api/documents/**', (route) =>
+      route.request().method() === 'PATCH' ? route.abort('failed') : route.continue(),
+    );
+
+    await page.getByTestId('done-editing').click();
+    await expect(page).toHaveURL(/\/docs\/[^/]+$/, { timeout: 20_000 });
+    await expect(page.getByTestId('document-title')).toHaveText('Unreachable');
+  });
+
+  test('both toolbars export the markdown source on screen', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await continueAsGuest(page);
+    await createProject(page, 'Exports');
+    await createDocument(page, 'Ünïcode Notes!');
+
+    await typeIntoEditor(page, '# Draft\n\nstill unsaved');
+
+    // Edit mode exports the live buffer, not the last saved version.
+    const editDownload = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('download-document').click(),
+    ]);
+    expect(editDownload[0].suggestedFilename()).toBe('unicode-notes.md');
+    expect(await readDownload(editDownload[0])).toBe('# Draft\n\nstill unsaved');
+
+    await page.getByTestId('copy-document').click();
+    await expect(page.getByText('Markdown copied to the clipboard')).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+      '# Draft\n\nstill unsaved',
+    );
+
+    // Same pair, same behaviour, in view mode.
+    await page.getByTestId('done-editing').click();
+    await expect(page).toHaveURL(/\/docs\/[^/]+$/);
+    const viewDownload = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByTestId('download-document').click(),
+    ]);
+    expect(viewDownload[0].suggestedFilename()).toBe('unicode-notes.md');
+    expect(await readDownload(viewDownload[0])).toBe('# Draft\n\nstill unsaved');
+
+    await page.getByTestId('copy-document').click();
+    await expect(page.getByText('Markdown copied to the clipboard')).toBeVisible();
   });
 
   test('log out and log back in returns the same data', async ({ page }) => {
