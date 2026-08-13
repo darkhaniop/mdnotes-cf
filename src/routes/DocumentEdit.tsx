@@ -2,7 +2,7 @@ import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'reac
 import { Link, useNavigate, useParams } from 'react-router';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Save } from 'lucide-react';
+import { Check, Eye, EyeOff, Loader2, Save } from 'lucide-react';
 import type { AssetDto } from '@shared/schemas/asset';
 import { isImageMime } from '@shared/schemas/asset';
 import { ApiError } from '@/lib/api-client';
@@ -39,6 +39,8 @@ export function DocumentEdit() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('saved');
+  /** "Done" is pressed and its save is still round-tripping. */
+  const [finishing, setFinishing] = useState(false);
   const loadedFor = useRef<string | null>(null);
   /** The updatedAt the server last confirmed; sent back for optimistic concurrency. */
   const baseUpdatedAt = useRef<number | null>(null);
@@ -122,6 +124,16 @@ export function DocumentEdit() {
     },
     [document, save, content],
   );
+
+  const finishEditing = useCallback(async () => {
+    setFinishing(true);
+    try {
+      await save({ title, content });
+    } finally {
+      setFinishing(false);
+      void navigate(`/projects/${projectId}/docs/${docId}`);
+    }
+  }, [save, title, content, navigate, projectId, docId]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -213,20 +225,21 @@ export function DocumentEdit() {
           {previewVisible ? <EyeOff /> : <Eye />}
           {previewVisible ? 'Hide preview' : 'Show preview'}
         </Button>
-        <Button size="sm" onClick={saveNow} data-testid="save-document">
-          <Save /> Save
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          data-testid="done-editing"
-          onClick={async () => {
-            await save({ title, content });
-            void navigate(`/projects/${projectId}/docs/${docId}`);
-          }}
-        >
-          Done
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={saveNow} data-testid="save-document">
+            <Save /> Save
+          </Button>
+          <Button
+            size="sm"
+            data-testid="done-editing"
+            disabled={finishing}
+            aria-busy={finishing}
+            onClick={() => void finishEditing()}
+          >
+            {finishing ? <Loader2 className="animate-spin" /> : <Check />}
+            {finishing ? 'Saving…' : 'Done'}
+          </Button>
+        </div>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
