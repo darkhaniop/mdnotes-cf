@@ -46,11 +46,14 @@ projects.get('/', requireAuth, async (c) => {
   const rows = await db
     .select({
       project: schema.projects,
-      documentCount: sql<number>`(select count(*) from ${schema.documents} where ${schema.documents.projectId} = ${schema.projects.id})`,
-      assetCount: sql<number>`(select count(*) from ${schema.assets} where ${schema.assets.projectId} = ${schema.projects.id})`,
+      documentCount: sql<number>`count(distinct ${schema.documents.id})`,
+      assetCount: sql<number>`count(distinct ${schema.assets.id})`,
     })
     .from(schema.projects)
+    .leftJoin(schema.documents, eq(schema.documents.projectId, schema.projects.id))
+    .leftJoin(schema.assets, eq(schema.assets.projectId, schema.projects.id))
     .where(eq(schema.projects.userId, c.get('userId')))
+    .groupBy(schema.projects.id)
     .orderBy(desc(schema.projects.updatedAt));
 
   return c.json({

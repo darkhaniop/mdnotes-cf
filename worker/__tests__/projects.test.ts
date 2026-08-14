@@ -30,6 +30,41 @@ describe('projects', () => {
     expect(one.project.name).toBe('Physics Notes');
   });
 
+  it('counts the documents and assets each project actually holds', async () => {
+    const client = await guestClient();
+    const project = await createProject(client, 'Counted');
+    const empty = await createProject(client, 'Empty');
+
+    for (const title of ['One', 'Two']) {
+      const res = await client.fetch(`/api/projects/${project.id}/documents`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ title }),
+      });
+      expect(res.status).toBe(201);
+    }
+
+    const form = new FormData();
+    const bytes = new Uint8Array(64);
+    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
+    form.set('file', new File([bytes], 'shot.png', { type: 'image/png' }));
+    expect(
+      (await client.fetch(`/api/projects/${project.id}/assets`, { method: 'POST', body: form }))
+        .status,
+    ).toBe(201);
+
+    const list = await json(await client.fetch('/api/projects'));
+    const counted = list.projects.find((p: { id: string }) => p.id === project.id);
+    const untouched = list.projects.find((p: { id: string }) => p.id === empty.id);
+
+    // The counts are joined across two child tables at once, so a project with
+    // rows in both must not have either count inflated by the other.
+    expect(counted.documentCount).toBe(2);
+    expect(counted.assetCount).toBe(1);
+    expect(untouched.documentCount).toBe(0);
+    expect(untouched.assetCount).toBe(0);
+  });
+
   it('de-duplicates slugs within one user but not across users', async () => {
     const a = await guestClient();
     const first = await createProject(a, 'Notes');
