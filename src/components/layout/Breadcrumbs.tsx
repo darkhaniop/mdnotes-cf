@@ -35,7 +35,6 @@ function EditableCrumb({ value, edit, testId }: { value: string; edit: CrumbEdit
   const revertTo = useRef(value);
   /** What blur will commit. Escape rewrites it before blurring. */
   const pending = useRef(value);
-  pending.current = value;
 
   return (
     <span className="relative inline-grid min-w-[5rem] max-w-[16rem] items-center">
@@ -58,8 +57,12 @@ function EditableCrumb({ value, edit, testId }: { value: string; edit: CrumbEdit
         className="text-foreground hover:bg-accent focus:bg-background col-start-1 row-start-1 w-full min-w-0 truncate rounded-md border border-transparent bg-transparent px-1.5 py-0.5 font-medium focus:border-[var(--border)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
         onFocus={() => {
           revertTo.current = value;
+          pending.current = value;
         }}
-        onChange={(event) => edit.onChange(event.target.value)}
+        onChange={(event) => {
+          pending.current = event.target.value;
+          edit.onChange(event.target.value);
+        }}
         onBlur={() => edit.onCommit?.(pending.current)}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {

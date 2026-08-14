@@ -251,11 +251,15 @@ test.describe('mdnotes primary flow', () => {
     expect(editDownload[0].suggestedFilename()).toBe('unicode-notes.md');
     expect(await readDownload(editDownload[0])).toBe('# Draft\n\nstill unsaved');
 
+    const copiedToast = page.getByText('Markdown copied to the clipboard');
     await page.getByTestId('copy-document').click();
-    await expect(page.getByText('Markdown copied to the clipboard')).toBeVisible();
+    await expect(copiedToast).toHaveCount(1);
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
       '# Draft\n\nstill unsaved',
     );
+    // Let it auto-dismiss, so the view-mode assertion below cannot pass on this
+    // toast instead of its own.
+    await expect(copiedToast).toHaveCount(0, { timeout: 20_000 });
 
     // Same pair, same behaviour, in view mode.
     await page.getByTestId('done-editing').click();
@@ -268,7 +272,7 @@ test.describe('mdnotes primary flow', () => {
     expect(await readDownload(viewDownload[0])).toBe('# Draft\n\nstill unsaved');
 
     await page.getByTestId('copy-document').click();
-    await expect(page.getByText('Markdown copied to the clipboard')).toBeVisible();
+    await expect(copiedToast).toHaveCount(1);
   });
 
   test('log out and log back in returns the same data', async ({ page }) => {
