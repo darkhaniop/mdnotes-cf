@@ -9,6 +9,11 @@
     <meta name="color-scheme" content="light dark" />
     <title>mdnotes</title>
     <meta name="description" content="A markdown notebook that runs on the edge." />
+    <!-- SVG first so the glyph can follow the tab's colour scheme; the PNG is
+         the fallback for browsers that still ignore SVG favicons. -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   </head>
   <body>
     <div id="root"></div>
