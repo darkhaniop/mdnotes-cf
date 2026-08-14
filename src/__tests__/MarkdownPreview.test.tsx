@@ -62,13 +62,23 @@ describe('MarkdownPreview', () => {
     expect(img.getAttribute('loading')).toBe('lazy');
   });
 
-  it('renders a PDF link as an inline preview card', () => {
-    renderMd('[spec](spec.pdf)');
+  it('embeds a PDF referenced with image syntax, captioned by the alt text', () => {
+    renderMd('![the spec](spec.pdf)');
     const card = screen.getByTestId('pdf-card');
-    expect(card).toBeInTheDocument();
     expect(card.querySelector('object')?.getAttribute('data')).toBe(
       '/api/projects/proj-1/assets/by-name/spec.pdf',
     );
+    // The caption used to be dropped: `children` arrives as an array, so the
+    // old `typeof children === 'string'` check always fell through to 'PDF'.
+    expect(card).toHaveTextContent('the spec');
+  });
+
+  it('leaves a PDF referenced with link syntax as a link', () => {
+    renderMd('[the spec](spec.pdf)');
+    expect(screen.queryByTestId('pdf-card')).toBeNull();
+    const link = screen.getByRole('link', { name: /the spec/ });
+    expect(link.getAttribute('href')).toBe('/api/projects/proj-1/assets/by-name/spec.pdf');
+    expect(link.getAttribute('target')).toBe('_blank');
   });
 
   it('strips script tags', () => {

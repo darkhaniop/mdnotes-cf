@@ -1,6 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useResolvedTheme } from '@/hooks/useTheme';
 
+/** Matches the body stack in index.css so diagrams sit with the surrounding prose. */
+const DIAGRAM_FONT =
+  'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+
 let mermaidReady: Promise<typeof import('mermaid').default> | null = null;
 
 /** ~500 KB, so it is only pulled in when a document actually contains a diagram. */
@@ -35,7 +39,8 @@ export function MermaidDiagram({ code }: { code: string }) {
           startOnLoad: false,
           securityLevel: 'strict',
           theme: theme === 'dark' ? 'dark' : 'default',
-          fontFamily: 'inherit',
+          fontFamily: DIAGRAM_FONT,
+          themeVariables: { fontFamily: DIAGRAM_FONT, fontSize: '16px' },
         });
         const { svg: rendered } = await mermaid.render(id, source);
         if (!cancelled) {

@@ -91,18 +91,21 @@ export const MarkdownPreview = memo(function MarkdownPreview({
           </code>
         );
       },
-      img: ({ src, alt }) => <AssetImage src={typeof src === 'string' ? src : undefined} alt={alt} />,
-      a: ({ href, children, ...props }) => {
-        if (typeof href === 'string' && isPdfHref(href)) {
-          const label = typeof children === 'string' && children ? children : 'PDF';
-          return <PdfCard href={href} label={label} />;
-        }
-        return (
-          <a href={href} target="_blank" rel="noreferrer noopener" {...props}>
-            {children}
-          </a>
-        );
+      // The two syntaxes keep their usual meanings: `![alt](x.pdf)` embeds the
+      // document, `[text](x.pdf)` stays a link.
+      img: ({ src, alt }) => {
+        const url = typeof src === 'string' ? src : undefined;
+        if (url && isPdfHref(url)) return <PdfCard href={url} label={alt?.trim() || 'PDF'} />;
+        return <AssetImage src={url} alt={alt} />;
       },
+      a: ({ href, children, ...props }) => (
+        <a href={href} target="_blank" rel="noreferrer noopener" {...props}>
+          {typeof href === 'string' && isPdfHref(href) ? (
+            <FileText className="mr-1 inline size-3.5 align-[-0.15em]" aria-hidden />
+          ) : null}
+          {children}
+        </a>
+      ),
     }),
     [],
   );
