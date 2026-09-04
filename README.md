@@ -6,6 +6,10 @@ A markdown editor / notebook that runs entirely on Cloudflare: one Worker serves
 `/api/*` and the compiled React SPA via Workers Static Assets, D1 holds relational data and
 markdown source, R2 holds uploaded images and PDFs.
 
+![light-dark-themes](images/mdnotes-cf-themes.png)
+
+*Supports light/dark themes.*
+
 See [`PLAN.md`](./PLAN.md) for the full design.
 
 ---
